@@ -1,4 +1,4 @@
-unit uShopeeAPI;
+﻿unit uShopeeAPI;
 
 interface
 
@@ -45,7 +45,7 @@ type
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, System.Net.URLClient, System.NetConsts;
 
 function JStr(O: TJSONObject; const Key: string; const Def: string = ''): string;
 var V: TJSONValue;
@@ -310,7 +310,6 @@ begin
           Item := ParseItemFromJSON(Arr.Items[i] as TJSONObject);
           Result.Add(Item);
         end;
-      HasNext := False;
       HasNext := JBool(JResp, 'has_next_page');
       if HasNext then
         Offset := JInt(JResp, 'next_offset');
@@ -449,7 +448,6 @@ begin
           Ord := ParseOrderFromJSON(Arr.Items[i] as TJSONObject);
           Result.Add(Ord);
         end;
-      HasNext := False;
       HasNext := JBool(JResp, 'more');
       if HasNext then
         Cursor := JStr(JResp, 'next_cursor');

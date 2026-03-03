@@ -30,7 +30,7 @@ function RefreshAccessToken(const ABaseURL, APartnerID, APartnerKey, AShopID, AR
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, System.Net.URLClient, System.NetConsts;
 
 function BuildAuthorizationURL(const ABaseURL, APartnerID, ARedirectURI: string): string;
 var

@@ -10,10 +10,12 @@ object frmMain: TfrmMain
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OldCreateOrder = True
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
+  PixelsPerInch = 96
   TextHeight = 15
   object pnlTop: TPanel
     Left = 0
@@ -85,6 +87,10 @@ object frmMain: TfrmMain
     object tabOrdens: TTabSheet
       Caption = 'Ordens'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object pnlOrdens: TPanel
         Left = 0
         Top = 0

@@ -39,8 +39,6 @@ type
     procedure ConfigurarGridOrdens;
     procedure CarregarProdutos;
     procedure CarregarOrdens;
-    procedure TokenRefreshed(const AAccessToken, ARefreshToken: string;
-      AExpiresAt: Int64);
     function ObterProdutoSelecionado: TShopeeItem;
     function ObterOrdemSelecionada: TShopeeOrderSummary;
   public
@@ -114,8 +112,7 @@ begin
   FAPI.ShopID := frmConfig.GetShopID;
   FAPI.RefreshToken := frmConfig.GetRefreshToken;
   FAPI.ExpiresAt := frmConfig.GetExpiresAt;
-  FAPI.OnTokensRefreshed :=
-      procedure(const AAccessToken, ARefreshToken: string; AExpiresAt: Int64)
+  FAPI.OnTokensRefreshed := procedure(AAccessToken, ARefreshToken: string; AExpiresAt: Int64)
     begin
       frmConfig.SaveTokens(AAccessToken, ARefreshToken, AExpiresAt);
     end;
@@ -128,8 +125,7 @@ var
 begin
   if not frmConfig.CredenciaisPreenchidas then
   begin
-    ShowMessage
-      ('Configure as credenciais em Configuração e use Conectar com Shopee para autorizar.');
+    ShowMessage('Configure as credenciais em Configuração e use Conectar com Shopee para autorizar.');
     Exit;
   end;
   FAPI.BaseURL := frmConfig.GetBaseURL;
@@ -191,12 +187,6 @@ begin
     Result := TShopeeItem(Result.Clone);
 end;
 
-procedure TfrmMain.TokenRefreshed(const AAccessToken, ARefreshToken: string;
-  AExpiresAt: Int64);
-begin
-  frmConfig.SaveTokens(AAccessToken, ARefreshToken, AExpiresAt);
-end;
-
 procedure TfrmMain.btnEditarProdutoClick(Sender: TObject);
 var
   Item: TShopeeItem;
@@ -233,8 +223,7 @@ var
 begin
   if not frmConfig.CredenciaisPreenchidas then
   begin
-    ShowMessage
-      ('Configure as credenciais em Configuração e use Conectar com Shopee para autorizar.');
+    ShowMessage('Configure as credenciais em Configuração e use Conectar com Shopee para autorizar.');
     Exit;
   end;
   FAPI.BaseURL := frmConfig.GetBaseURL;
