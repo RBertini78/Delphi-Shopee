@@ -1,4 +1,4 @@
-﻿unit uConfig;
+unit uConfig;
 
 interface
 
@@ -197,7 +197,7 @@ begin
   RedirectURI := 'http://127.0.0.1:' + IntToStr(CALLBACK_PORT) +
     uShopeeOAuth.DEFAULT_REDIRECT_PATH;
   AuthURL := BuildAuthorizationURL(edtBaseURL.Text, Trim(edtPartnerID.Text),
-    RedirectURI);
+    Trim(edtPartnerKey.Text), RedirectURI);
   FCallbackReceived := False;
   FCallbackCode := '';
   FCallbackShopID := '';

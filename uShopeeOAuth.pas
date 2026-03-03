@@ -21,7 +21,7 @@ type
     ExpiresAt: Int64;
   end;
 
-function BuildAuthorizationURL(const ABaseURL, APartnerID, ARedirectURI: string): string;
+function BuildAuthorizationURL(const ABaseURL, APartnerID, APartnerKey, ARedirectURI: string): string;
 function ExchangeCodeForToken(const ABaseURL, APartnerID, APartnerKey, ACode, AShopID: string;
   out AResult: TShopeeTokenResult): Boolean;
 function RefreshAccessToken(const ABaseURL, APartnerID, APartnerKey, AShopID, ARefreshToken: string;
@@ -32,14 +32,19 @@ implementation
 uses
   System.DateUtils, System.Net.URLClient, System.NetConsts;
 
-function BuildAuthorizationURL(const ABaseURL, APartnerID, ARedirectURI: string): string;
+function BuildAuthorizationURL(const ABaseURL, APartnerID, APartnerKey, ARedirectURI: string): string;
 var
   Base: string;
+  Sign: string;
+  Timestamp: Int64;
 begin
+  GetShopeeAuthSign(APartnerID, APartnerKey, PATH_AUTH_PARTNER, Sign, Timestamp);
   Base := ExcludeTrailingPathDelimiter(ABaseURL);
   Result := Base + PATH_AUTH_PARTNER +
     '?partner_id=' + TNetEncoding.URL.Encode(APartnerID) +
-    '&redirect=' + TNetEncoding.URL.Encode(ARedirectURI);
+    '&redirect=' + TNetEncoding.URL.Encode(ARedirectURI) +
+    '&sign=' + TNetEncoding.URL.Encode(Sign) +
+    '&timestamp=' + IntToStr(Timestamp);
 end;
 
 function JStr(O: TJSONObject; const Key: string; const Def: string = ''): string;

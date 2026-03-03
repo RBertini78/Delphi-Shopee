@@ -1,4 +1,4 @@
-﻿unit uShopeeAPI;
+unit uShopeeAPI;
 
 interface
 
@@ -302,7 +302,7 @@ begin
         raise Exception.Create(JStr(Root, 'message', JStr(Root, 'error', 'Unknown error')));
       JResp := JObj(Root, 'response');
       if JResp = nil then Break;
-      Arr := JArr(JResp, 'item_list');
+      Arr := JArr(JResp, 'item');
       if Arr = nil then Break;
       for i := 0 to Arr.Count - 1 do
         if Arr.Items[i] is TJSONObject then
