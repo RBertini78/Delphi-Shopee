@@ -1,4 +1,4 @@
-unit uShopeeAPI;
+﻿unit uShopeeAPI;
 
 interface
 
@@ -20,7 +20,8 @@ type
     FOnTokensRefreshed: TProc<string, string, Int64>;
     function BuildURL(const APath: string; const AExtraParams: array of TPair<string, string>): string;
     function DoGET(const APath: string; const AExtraParams: array of TPair<string, string>): string;
-    function DoPOST(const APath: string; const ABody: TJSONObject): string;
+    function DoPOSTShop(const APath: string; const ABody: TJSONObject): string;
+    procedure CheckResponseError(Root: TJSONObject);
     procedure EnsureValidToken;
     function ParseItemFromJSON(AItem: TJSONObject): TShopeeItem;
     function ParseOrderFromJSON(AOrder: TJSONObject): TShopeeOrderSummary;
@@ -180,21 +181,43 @@ begin
     raise Exception.Create(Format('HTTP %d: %s', [Resp.StatusCode, Result]));
 end;
 
-function TShopeeAPI.DoPOST(const APath: string; const ABody: TJSONObject): string;
+procedure TShopeeAPI.CheckResponseError(Root: TJSONObject);
 var
-  URL: string;
-  Q: string;
-  BodyStr: string;
+  V: TJSONValue;
+  ErrCode: Integer;
+  ErrMsg: string;
+begin
+  if Root = nil then Exit;
+  V := Root.GetValue('error');
+  if V = nil then Exit;
+  ErrMsg := JStr(Root, 'message', '');
+  if V is TJSONNumber then
+  begin
+    ErrCode := (V as TJSONNumber).AsInt;
+    if ErrCode <> 0 then
+      raise Exception.Create(Format('Erro Shopee (%d): %s', [ErrCode, ErrMsg]));
+  end
+  else if (V is TJSONString) and ((V as TJSONString).Value <> '') then
+    raise Exception.Create(ErrMsg);
+end;
+
+function TShopeeAPI.DoPOSTShop(const APath: string; const ABody: TJSONObject): string;
+var
+  URL, BodyStr, Q: string;
   Stream: TStringStream;
   Resp: IHTTPResponse;
+  LHeaders: TNetHeaders;
 begin
   EnsureValidToken;
-  Q := BuildShopeeQueryParams(FPartnerID, FPartnerKey, FAccessToken, FShopID, APath, []);
-  URL := FBaseURL + APath + '?' + Q;
   BodyStr := ABody.ToJSON;
+  Q := BuildShopeeQueryParamsForPost(FPartnerID, FPartnerKey, FShopID, APath, BodyStr);
+  URL := FBaseURL + APath + '?' + Q;
+  SetLength(LHeaders, 1);
+  LHeaders[0].Name := 'Authorization';
+  LHeaders[0].Value := 'Bearer ' + FAccessToken;
   Stream := TStringStream.Create(BodyStr, TEncoding.UTF8);
   try
-    Resp := FHTTP.Post(URL, Stream);
+    Resp := FHTTP.Post(URL, Stream, nil, LHeaders);
     Result := Resp.ContentAsString;
     if Resp.StatusCode <> 200 then
       raise Exception.Create(Format('HTTP %d: %s', [Resp.StatusCode, Result]));
@@ -216,6 +239,8 @@ begin
   try
     Result.ItemID := JInt64(AItem, 'item_id');
     Result.ItemName := JStr(AItem, 'item_name');
+    if Result.ItemName = '' then
+      Result.ItemName := JStr(AItem, 'name');
     Result.Status := JStr(AItem, 'status');
     Result.SKU := JStr(AItem, 'item_sku');
     if Result.SKU = '' then Result.SKU := JStr(AItem, 'sku');
@@ -233,6 +258,8 @@ begin
       else
         Result.Price := JDouble(O, 'current_price');
     end;
+    if Result.Price = 0 then
+      Result.Price := JDouble(AItem, 'price');
 
     O := JObj(AItem, 'stock_info');
     if O <> nil then
@@ -257,6 +284,8 @@ begin
       if Result.Stock = 0 then
         Result.Stock := JInt64(O, 'summary_total_stock');
     end;
+    if Result.Stock = 0 then
+      Result.Stock := JInt64(AItem, 'stock');
 
     Arr := JArr(AItem, 'model');
     if Arr <> nil then
@@ -293,16 +322,18 @@ begin
   begin
     Resp := DoGET(PATH_GET_ITEM_LIST, [
       TPair<string, string>.Create('offset', IntToStr(Offset)),
-      TPair<string, string>.Create('page_size', IntToStr(PageSize))
+      TPair<string, string>.Create('page_size', IntToStr(PageSize)),
+      TPair<string, string>.Create('item_status', 'NORMAL')
     ]);
     Root := TJSONObject.ParseJSONValue(Resp) as TJSONObject;
     if Root = nil then Exit;
     try
-      if JStr(Root, 'error') <> '' then
-        raise Exception.Create(JStr(Root, 'message', JStr(Root, 'error', 'Unknown error')));
+      CheckResponseError(Root);
       JResp := JObj(Root, 'response');
       if JResp = nil then Break;
       Arr := JArr(JResp, 'item');
+      if Arr = nil then
+        Arr := JArr(JResp, 'items');
       if Arr = nil then Break;
       for i := 0 to Arr.Count - 1 do
         if Arr.Items[i] is TJSONObject then
@@ -324,23 +355,22 @@ var
   Body: TJSONObject;
   Resp: string;
   Root: TJSONObject;
-  Err: string;
 begin
   Body := TJSONObject.Create;
   try
+    Body.AddPair('partner_id', TJSONNumber.Create(StrToInt64Def(FPartnerID, 0)));
+    Body.AddPair('shop_id', TJSONNumber.Create(StrToInt64Def(FShopID, 0)));
     Body.AddPair('item_id', TJSONNumber.Create(AItemID));
     Body.AddPair('price', TJSONNumber.Create(APrice));
     if AModelID <> 0 then
       Body.AddPair('model_id', TJSONNumber.Create(AModelID));
-    Resp := DoPOST(PATH_UPDATE_PRICE, Body);
+    Resp := DoPOSTShop(PATH_UPDATE_PRICE, Body);
     Root := TJSONObject.ParseJSONValue(Resp) as TJSONObject;
     if Root = nil then
       Exit(False);
     try
-      Err := JStr(Root, 'error');
-      Result := Err = '';
-      if not Result then
-        raise Exception.Create(JStr(Root, 'message', Err));
+      CheckResponseError(Root);
+      Result := True;
     finally
       Root.Free;
     end;
@@ -352,30 +382,22 @@ end;
 function TShopeeAPI.UpdateStock(AItemID: Int64; AStock: Int64; AModelID: Int64): Boolean;
 var
   Body: TJSONObject;
-  StockArr: TJSONArray;
-  StockObj: TJSONObject;
   Resp: string;
   Root: TJSONObject;
-  Err: string;
 begin
   Body := TJSONObject.Create;
   try
+    Body.AddPair('partner_id', TJSONNumber.Create(StrToInt64Def(FPartnerID, 0)));
+    Body.AddPair('shop_id', TJSONNumber.Create(StrToInt64Def(FShopID, 0)));
     Body.AddPair('item_id', TJSONNumber.Create(AItemID));
-    StockArr := TJSONArray.Create;
-    StockObj := TJSONObject.Create;
-    StockObj.AddPair('model_id', TJSONNumber.Create(AModelID));
-    StockObj.AddPair('normal_stock', TJSONNumber.Create(AStock));
-    StockArr.AddElement(StockObj);
-    Body.AddPair('stock_list', StockArr);
-    Resp := DoPOST(PATH_UPDATE_STOCK, Body);
+    Body.AddPair('stock', TJSONNumber.Create(AStock));
+    Resp := DoPOSTShop(PATH_UPDATE_STOCK, Body);
     Root := TJSONObject.ParseJSONValue(Resp) as TJSONObject;
     if Root = nil then
       Exit(False);
     try
-      Err := JStr(Root, 'error');
-      Result := Err = '';
-      if not Result then
-        raise Exception.Create(JStr(Root, 'message', Err));
+      CheckResponseError(Root);
+      Result := True;
     finally
       Root.Free;
     end;
@@ -395,7 +417,9 @@ begin
   Result.OrderStatus := JStr(AOrder, 'order_status');
   O := JObj(AOrder, 'total_amount');
   if O <> nil then
-    Result.TotalAmount := JDouble(O, 'value');
+    Result.TotalAmount := JDouble(O, 'value')
+  else
+    Result.TotalAmount := JDouble(AOrder, 'total_amount');
   Result.TotalAmountFormatted := FormatFloat('0.00', Result.TotalAmount);
   T := JInt64(AOrder, 'create_time');
   if T <> 0 then
@@ -405,6 +429,8 @@ begin
     Result.CreateTimeFormatted := FormatDateTime('dd/mm/yyyy hh:nn', D);
   end;
   Result.BuyerUserName := JStr(AOrder, 'buyer_user_name');
+  if Result.BuyerUserName = '' then
+    Result.BuyerUserName := JStr(AOrder, 'buyer_username');
   Result.ItemCount := JInt(AOrder, 'item_count');
 end;
 
@@ -436,11 +462,12 @@ begin
     Root := TJSONObject.ParseJSONValue(Resp) as TJSONObject;
     if Root = nil then Exit;
     try
-      if JStr(Root, 'error') <> '' then
-        raise Exception.Create(JStr(Root, 'message', JStr(Root, 'error', 'Unknown error')));
+      CheckResponseError(Root);
       JResp := JObj(Root, 'response');
       if JResp = nil then Break;
       Arr := JArr(JResp, 'order_list');
+      if Arr = nil then
+        Arr := JArr(JResp, 'orders');
       if Arr = nil then Break;
       for i := 0 to Arr.Count - 1 do
         if Arr.Items[i] is TJSONObject then
@@ -476,8 +503,7 @@ begin
   Root := TJSONObject.ParseJSONValue(Resp) as TJSONObject;
   if Root = nil then Exit;
   try
-    if JStr(Root, 'error') <> '' then
-      raise Exception.Create(JStr(Root, 'message', JStr(Root, 'error', 'Unknown error')));
+    CheckResponseError(Root);
     JResp := JObj(Root, 'response');
     if JResp = nil then Exit;
     Arr := JArr(JResp, 'order_list');

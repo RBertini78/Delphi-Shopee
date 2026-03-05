@@ -3,7 +3,7 @@ object frmConfig: TfrmConfig
   Top = 0
   BorderStyle = bsDialog
   Caption = 'Configura'#231#227'o Shopee'
-  ClientHeight = 300
+  ClientHeight = 328
   ClientWidth = 450
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object frmConfig: TfrmConfig
     Left = 0
     Top = 0
     Width = 450
-    Height = 300
+    Height = 328
     Align = alClient
     TabOrder = 0
     object lblBaseURL: TLabel
@@ -28,23 +28,41 @@ object frmConfig: TfrmConfig
       Height = 15
       Caption = 'Base URL'
     end
+    object lblEnvironment: TLabel
+      Left = 16
+      Top = 64
+      Width = 49
+      Height = 15
+      Caption = 'Ambiente'
+    end
+    object cboEnvironment: TComboBox
+      Left = 16
+      Top = 83
+      Width = 200
+      Height = 23
+      Style = csDropDownList
+      TabOrder = 8
+      Items.Strings = (
+        'Sandbox'
+        'Production')
+    end
     object lblPartnerID: TLabel
       Left = 16
-      Top = 68
+      Top = 116
       Width = 52
       Height = 15
       Caption = 'Partner ID'
     end
     object lblPartnerKey: TLabel
       Left = 16
-      Top = 118
+      Top = 166
       Width = 60
       Height = 15
       Caption = 'Partner Key'
     end
     object lblAccessToken: TLabel
       Left = 16
-      Top = 168
+      Top = 216
       Width = 71
       Height = 15
       Caption = 'Access Token'
@@ -52,14 +70,14 @@ object frmConfig: TfrmConfig
     end
     object lblStatusOAuth: TLabel
       Left = 16
-      Top = 168
+      Top = 216
       Width = 216
       Height = 15
       Caption = 'Conecte com Shopee para obter o token.'
     end
     object lblShopID: TLabel
       Left = 16
-      Top = 228
+      Top = 276
       Width = 41
       Height = 15
       Caption = 'Shop ID'
@@ -74,14 +92,14 @@ object frmConfig: TfrmConfig
     end
     object edtPartnerID: TEdit
       Left = 16
-      Top = 87
+      Top = 135
       Width = 410
       Height = 23
       TabOrder = 1
     end
     object edtPartnerKey: TEdit
       Left = 16
-      Top = 137
+      Top = 185
       Width = 410
       Height = 23
       PasswordChar = '*'
@@ -97,7 +115,7 @@ object frmConfig: TfrmConfig
     end
     object btnConectar: TButton
       Left = 16
-      Top = 187
+      Top = 235
       Width = 150
       Height = 28
       Caption = 'Conectar com Shopee'
@@ -106,14 +124,14 @@ object frmConfig: TfrmConfig
     end
     object edtShopID: TEdit
       Left = 16
-      Top = 247
+      Top = 295
       Width = 200
       Height = 23
       TabOrder = 4
     end
     object btnSalvar: TButton
       Left = 248
-      Top = 248
+      Top = 296
       Width = 85
       Height = 28
       Caption = 'Salvar'
@@ -122,7 +140,7 @@ object frmConfig: TfrmConfig
     end
     object btnFechar: TButton
       Left = 341
-      Top = 248
+      Top = 296
       Width = 85
       Height = 28
       Caption = 'Fechar'

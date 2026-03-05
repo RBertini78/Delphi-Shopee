@@ -13,6 +13,8 @@ type
     pnlMain: TPanel;
     lblBaseURL: TLabel;
     edtBaseURL: TEdit;
+    lblEnvironment: TLabel;
+    cboEnvironment: TComboBox;
     lblPartnerID: TLabel;
     edtPartnerID: TEdit;
     lblPartnerKey: TLabel;
@@ -47,6 +49,7 @@ type
   public
     function CredenciaisPreenchidas: Boolean;
     function GetBaseURL: string;
+    function GetIsSandbox: Boolean;
     function GetPartnerID: string;
     function GetPartnerKey: string;
     function GetAccessToken: string;
@@ -72,6 +75,7 @@ uses
 procedure TfrmConfig.FormCreate(Sender: TObject);
 begin
   FConfigPath := TPath.Combine(TPath.GetDocumentsPath, 'ShopeeConfig.ini');
+  cboEnvironment.ItemIndex := 0;
   Carregar;
 end;
 
@@ -82,12 +86,17 @@ begin
   if not TFile.Exists(FConfigPath) then
   begin
     edtBaseURL.Text := 'https://partner.shopeemobile.com';
+    cboEnvironment.ItemIndex := 0;
     Exit;
   end;
   Ini := TIniFile.Create(FConfigPath);
   try
     edtBaseURL.Text := Ini.ReadString('Shopee', 'BaseURL',
       'https://partner.shopeemobile.com');
+    if SameText(Ini.ReadString('Shopee', 'Environment', 'Sandbox'), 'Production') then
+      cboEnvironment.ItemIndex := 1
+    else
+      cboEnvironment.ItemIndex := 0;
     edtPartnerID.Text := Ini.ReadString('Shopee', 'PartnerID', '');
     edtPartnerKey.Text := Ini.ReadString('Shopee', 'PartnerKey', '');
     FAccessToken := Ini.ReadString('Shopee', 'AccessToken', '');
@@ -106,6 +115,10 @@ begin
   Ini := TIniFile.Create(FConfigPath);
   try
     Ini.WriteString('Shopee', 'BaseURL', edtBaseURL.Text);
+    if cboEnvironment.ItemIndex = 1 then
+      Ini.WriteString('Shopee', 'Environment', 'Production')
+    else
+      Ini.WriteString('Shopee', 'Environment', 'Sandbox');
     Ini.WriteString('Shopee', 'PartnerID', edtPartnerID.Text);
     Ini.WriteString('Shopee', 'PartnerKey', edtPartnerKey.Text);
     Ini.WriteString('Shopee', 'AccessToken', FAccessToken);
@@ -138,7 +151,15 @@ end;
 
 function TfrmConfig.GetBaseURL: string;
 begin
-  Result := edtBaseURL.Text;
+  if GetIsSandbox then
+    Result := uShopeeOAuth.SANDBOX_API_HOST
+  else
+    Result := edtBaseURL.Text;
+end;
+
+function TfrmConfig.GetIsSandbox: Boolean;
+begin
+  Result := (cboEnvironment.ItemIndex = 0);
 end;
 
 function TfrmConfig.GetPartnerID: string;
@@ -188,16 +209,20 @@ var
   RedirectURI, AuthURL: string;
   WaitStart: Cardinal;
 begin
-  if (Trim(edtPartnerID.Text) = '') or (Trim(edtPartnerKey.Text) = '') or
-    (Trim(edtBaseURL.Text) = '') then
+  if (Trim(edtPartnerID.Text) = '') or (Trim(edtPartnerKey.Text) = '') then
   begin
-    ShowMessage('Preencha Base URL, Partner ID e Partner Key.');
+    ShowMessage('Preencha Partner ID e Partner Key.');
+    Exit;
+  end;
+  if not GetIsSandbox and (Trim(edtBaseURL.Text) = '') then
+  begin
+    ShowMessage('Preencha Base URL para ambiente Production.');
     Exit;
   end;
   RedirectURI := 'http://127.0.0.1:' + IntToStr(CALLBACK_PORT) +
     uShopeeOAuth.DEFAULT_REDIRECT_PATH;
   AuthURL := BuildAuthorizationURL(edtBaseURL.Text, Trim(edtPartnerID.Text),
-    Trim(edtPartnerKey.Text), RedirectURI);
+    Trim(edtPartnerKey.Text), RedirectURI, GetIsSandbox);
   FCallbackReceived := False;
   FCallbackCode := '';
   FCallbackShopID := '';
@@ -280,8 +305,8 @@ begin
     AResponseInfo.ContentType := 'text/html; charset=utf-8';
     AResponseInfo.ContentText :=
       '<html><body><h1>Conectado!</h1><p>Pode fechar esta janela.</p></body></html>';
-    TThread.Synchronize(nil, DoOAuthCallbackReceived);
     FCallbackReceived := True;
+    TThread.Queue(nil, DoOAuthCallbackReceived);
   end;
 end;
 
@@ -302,7 +327,7 @@ begin
     FCallbackReceived := True;
     Exit;
   end;
-  if ExchangeCodeForToken(edtBaseURL.Text, Trim(edtPartnerID.Text),
+  if ExchangeCodeForToken(GetBaseURL, Trim(edtPartnerID.Text),
     Trim(edtPartnerKey.Text), FCallbackCode, ShopIDToUse, TokenResult) then
   begin
     FAccessToken := TokenResult.AccessToken;
